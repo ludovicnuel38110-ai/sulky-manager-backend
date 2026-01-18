@@ -2,7 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-const authRoutes = require("./routes/auth"); // 🔴 IMPORTANT
+const authRoutes = require("./routes/auth");
+const playerRoutes = require("./routes/player");
 
 const app = express();
 
@@ -11,24 +12,22 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes); // 🔴 ICI le bug était
+app.use("/api/auth", authRoutes);
+app.use("/api/player", playerRoutes);
 
 // Test route
 app.get("/", (req, res) => {
   res.send("API Sulky Manager OK");
 });
 
-// DB
+// MongoDB (Render / Atlas)
 mongoose
-  .connect("mongodb://127.0.0.1:27017/sulky_manager")
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connecté"))
-  .catch(err => console.error(err));
+  .catch(err => console.error("Erreur MongoDB :", err));
 
 // Server
-app.listen(5000, () => {
-  console.log("Serveur lancé sur le port 5000");
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log("Serveur lancé sur le port " + PORT);
 });
-app.use("/api/player", require("./routes/player"));
-const playerRoutes = require("./routes/player");
-
-app.use("/api/player", playerRoutes);
