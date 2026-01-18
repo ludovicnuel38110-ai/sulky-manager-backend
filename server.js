@@ -1,9 +1,8 @@
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
-const authRoutes = require("./routes/auth");
-const playerRoutes = require("./routes/player");
 
 const app = express();
 
@@ -11,23 +10,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/player", playerRoutes);
-
-// Test route
+// Route test
 app.get("/", (req, res) => {
   res.send("API Sulky Manager OK");
 });
 
-// MongoDB (Render / Atlas)
+// MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connecté"))
-  .catch(err => console.error("Erreur MongoDB :", err));
+  .then(() => {
+    console.log("✅ MongoDB connecté");
+  })
+  .catch((err) => {
+    console.error("❌ Erreur MongoDB :", err.message);
+  });
 
-// Server
+// Port Render
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
-  console.log("Serveur lancé sur le port " + PORT);
+  console.log(`🚀 Serveur lancé sur le port ${PORT}`);
 });
