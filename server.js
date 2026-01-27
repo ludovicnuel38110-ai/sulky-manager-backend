@@ -1,47 +1,24 @@
-require("dotenv").config();
-
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
+require("./config/db");
 
 const app = express();
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Route test
+// ================= ROUTES =================
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/admin", require("./routes/admin"));
+app.use("/api/races", require("./routes/races"));
+
+// test route
 app.get("/", (req, res) => {
-  res.send("API Sulky Manager OK");
+  res.send("Sulky Bet API running");
 });
 
-// ===== MongoDB =====
-console.log("🔍 MONGO_URI =", process.env.MONGO_URI);
-
-mongoose.set("strictQuery", false);
-
-mongoose
-  .connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000, // timeout clair
-  })
-  .then(() => {
-    console.log("✅ MongoDB connecté avec succès");
-  })
-  .catch((err) => {
-    console.error("❌ Erreur MongoDB :", err);
-  });
-
-// Logs bas niveau (TRÈS UTILE)
-mongoose.connection.on("connected", () => {
-  console.log("🟢 Mongoose connection OPEN");
+// ⚠️ OBLIGATOIRE pour Render
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log("🚀 Server running on port", PORT);
 });
-
-mongoose.connection.on("error", (err) => {
-  console.error("🔴 Mongoose connection ERROR :", err);
-});
-
-mongoose.connection.on("disconnected", () => {
-  console.log("🟡 Mongoose connection DISCONNECTED");
-});
-
-// ===== Server =
