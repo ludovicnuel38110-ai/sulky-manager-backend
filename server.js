@@ -15,19 +15,33 @@ app.get("/", (req, res) => {
   res.send("API Sulky Manager OK");
 });
 
-// MongoDB
+// ===== MongoDB =====
+console.log("🔍 MONGO_URI =", process.env.MONGO_URI);
+
+mongoose.set("strictQuery", false);
+
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000, // timeout clair
+  })
   .then(() => {
-    console.log("✅ MongoDB connecté");
+    console.log("✅ MongoDB connecté avec succès");
   })
   .catch((err) => {
-    console.error("❌ Erreur MongoDB :", err.message);
+    console.error("❌ Erreur MongoDB :", err);
   });
 
-// Port Render
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur le port ${PORT}`);
+// Logs bas niveau (TRÈS UTILE)
+mongoose.connection.on("connected", () => {
+  console.log("🟢 Mongoose connection OPEN");
 });
+
+mongoose.connection.on("error", (err) => {
+  console.error("🔴 Mongoose connection ERROR :", err);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.log("🟡 Mongoose connection DISCONNECTED");
+});
+
+// ===== Server =
