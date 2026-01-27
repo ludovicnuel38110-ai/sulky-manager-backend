@@ -8,7 +8,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/users", require("./routes/users")); // ← POUR LE SOLDE & DASHBOARD
 
 app.get("/", (req, res) => {
   res.send("Sulky Bet API running");
