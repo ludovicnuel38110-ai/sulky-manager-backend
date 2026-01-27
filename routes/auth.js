@@ -8,63 +8,62 @@ const router = express.Router();
 /* REGISTER */
 router.post("/register", async (req, res) => {
   try {
-    const { username, password, email } = req.body;
+    const { pseudo, password } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: "Username et mot de passe requis" });
+    if (!pseudo || !password) {
+      return res.status(400).json({ message: "Pseudo et mot de passe requis" });
     }
 
-    const exist = await User.findOne({ username });
+    const exist = await User.findOne({ pseudo });
     if (exist) {
-      return res.status(400).json({ error: "Username déjà pris" });
+      return res.status(400).json({ message: "Pseudo déjà utilisé" });
     }
 
     const hash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      username,
-      email: email || "",
+      pseudo,
       password: hash,
-      balance: 0
+      balance: 1000
     });
 
     res.json({
       message: "Compte créé",
-      username: user.username
+      pseudo: user.pseudo
     });
 
   } catch (err) {
     console.error("REGISTER ERROR:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 });
 
 /* LOGIN */
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { pseudo, password } = req.body;
 
-    const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ error: "Username incorrect" });
+    const user = await User.findOne({ pseudo });
+    if (!user) return res.status(400).json({ message: "Pseudo incorrect" });
 
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(400).json({ error: "Mot de passe incorrect" });
+    if (!ok) return res.status(400).json({ message: "Mot de passe incorrect" });
 
     const token = jwt.sign(
-      { id: user._id, username: user.username },
+      { id: user._id, pseudo: user.pseudo },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     res.json({
       token,
-      username: user.username,
+      pseudo: user.pseudo,
       balance: user.balance
     });
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 });
 
