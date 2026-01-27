@@ -5,36 +5,32 @@ const User = require("../models/User");
 
 const router = express.Router();
 
-/* ======================
-   REGISTER
-====================== */
+/* REGISTER */
 router.post("/register", async (req, res) => {
   try {
-    // le frontend envoie "username"
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: "Pseudo et mot de passe requis" });
+      return res.status(400).json({ error: "Username et mot de passe requis" });
     }
 
-    // on stocke en base sous "pseudo"
-    const exist = await User.findOne({ pseudo: username });
+    const exist = await User.findOne({ username });
     if (exist) {
-      return res.status(400).json({ error: "Pseudo déjà pris" });
+      return res.status(400).json({ error: "Username déjà pris" });
     }
 
     const hash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      pseudo: username,
+      username,
+      email: email || "",
       password: hash,
       balance: 0
     });
 
     res.json({
       message: "Compte créé",
-      username: user.pseudo,
-      balance: user.balance
+      username: user.username
     });
 
   } catch (err) {
@@ -43,33 +39,26 @@ router.post("/register", async (req, res) => {
   }
 });
 
-/* ======================
-   LOGIN
-====================== */
+/* LOGIN */
 router.post("/login", async (req, res) => {
   try {
-    // le frontend envoie "username"
     const { username, password } = req.body;
 
-    const user = await User.findOne({ pseudo: username });
-    if (!user) {
-      return res.status(400).json({ error: "Pseudo incorrect" });
-    }
+    const user = await User.findOne({ username });
+    if (!user) return res.status(400).json({ error: "Username incorrect" });
 
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) {
-      return res.status(400).json({ error: "Mot de passe incorrect" });
-    }
+    if (!ok) return res.status(400).json({ error: "Mot de passe incorrect" });
 
     const token = jwt.sign(
-      { id: user._id, pseudo: user.pseudo },
+      { id: user._id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     res.json({
       token,
-      username: user.pseudo,
+      username: user.username,
       balance: user.balance
     });
 
