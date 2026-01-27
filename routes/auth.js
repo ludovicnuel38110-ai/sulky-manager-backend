@@ -5,15 +5,20 @@ const User = require("../models/User");
 
 const router = express.Router();
 
+/* ======================
+   REGISTER
+====================== */
 router.post("/register", async (req, res) => {
   try {
-    const { pseudo, password } = req.body;
+    // le frontend envoie "username"
+    const { username, password } = req.body;
 
-    if (!pseudo || !password) {
+    if (!username || !password) {
       return res.status(400).json({ error: "Pseudo et mot de passe requis" });
     }
 
-    const exist = await User.findOne({ pseudo });
+    // on stocke en base sous "pseudo"
+    const exist = await User.findOne({ pseudo: username });
     if (exist) {
       return res.status(400).json({ error: "Pseudo déjà pris" });
     }
@@ -21,12 +26,16 @@ router.post("/register", async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      pseudo,
+      pseudo: username,
       password: hash,
       balance: 0
     });
 
-    res.json({ message: "Compte créé", pseudo: user.pseudo });
+    res.json({
+      message: "Compte créé",
+      username: user.pseudo,
+      balance: user.balance
+    });
 
   } catch (err) {
     console.error("REGISTER ERROR:", err);
@@ -34,15 +43,23 @@ router.post("/register", async (req, res) => {
   }
 });
 
+/* ======================
+   LOGIN
+====================== */
 router.post("/login", async (req, res) => {
   try {
-    const { pseudo, password } = req.body;
+    // le frontend envoie "username"
+    const { username, password } = req.body;
 
-    const user = await User.findOne({ pseudo });
-    if (!user) return res.status(400).json({ error: "Pseudo incorrect" });
+    const user = await User.findOne({ pseudo: username });
+    if (!user) {
+      return res.status(400).json({ error: "Pseudo incorrect" });
+    }
 
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(400).json({ error: "Mot de passe incorrect" });
+    if (!ok) {
+      return res.status(400).json({ error: "Mot de passe incorrect" });
+    }
 
     const token = jwt.sign(
       { id: user._id, pseudo: user.pseudo },
@@ -52,7 +69,7 @@ router.post("/login", async (req, res) => {
 
     res.json({
       token,
-      pseudo: user.pseudo,
+      username: user.pseudo,
       balance: user.balance
     });
 
