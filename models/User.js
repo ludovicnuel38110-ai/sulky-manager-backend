@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   pseudo: {
     type: String,
     required: true,
@@ -12,8 +12,12 @@ const UserSchema = new mongoose.Schema({
   },
   balance: {
     type: Number,
-    default: 0
+    default: 1000
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
   }
 });
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = mongoose.model("User", userSchema);
