@@ -4,11 +4,7 @@ const User = require("../models/User");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 
-/*
-  POST /api/admin/credit
-  body: { pseudo, amount }
-*/
-router.post("/credit", auth, admin, async (req, res) => {
+router.post("/add-balance", auth, admin, async (req, res) => {
   try {
     const { pseudo, amount } = req.body;
 
@@ -25,7 +21,7 @@ router.post("/credit", auth, admin, async (req, res) => {
     await user.save();
 
     res.json({
-      message: "Solde crédité",
+      message: "Solde mis à jour",
       pseudo: user.pseudo,
       balance: user.balance
     });
