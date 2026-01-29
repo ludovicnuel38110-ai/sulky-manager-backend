@@ -16,7 +16,7 @@ module.exports = async function (req, res, next) {
       return res.status(401).json({ message: "Utilisateur introuvable" });
     }
 
-    req.user = user; // 👈 IMPORTANT
+    req.user = decoded; // 👈 IMPORTANT
     next();
   } catch (err) {
     res.status(401).json({ message: "Token invalide" });
