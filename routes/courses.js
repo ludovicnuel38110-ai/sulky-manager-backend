@@ -1,52 +1,29 @@
 const express = require("express");
 const router = express.Router();
+const Course = require("../models/Courses");
 
-/* Liste des courses */
-router.get("/", (req, res) => {
-  res.json([
-    {
-      id: 1,
-      name: "R1 – VINCENNES",
-      date: "Dimanche 01 février 2026",
-      link: "vincennes.html"
-    },
-    {
-      id: 2,
-      name: "R2 – ENGHIEN",
-      date: "Lundi 02 février 2026",
-      link: null
-    }
-  ]);
+/* 🔹 Liste des réunions */
+router.get("/", async (req, res) => {
+  const reunions = await Course.find({}, { reunion:1, date:1 });
+  res.json(reunions);
+});
+
+/* 🔹 Liste des courses d’une réunion */
+router.get("/reunion/:id", async (req, res) => {
+  const reunion = await Course.findById(req.params.id);
+  res.json(reunion.races);
+});
+
+/* 🔹 Détail d’une course + partants */
+router.get("/:raceId", async (req, res) => {
+  const courses = await Course.findOne(
+    { "races.id": Number(req.params.raceId) },
+    { "races.$": 1 }
+  );
+
+  if (!courses) return res.status(404).json({ message:"Course introuvable" });
+
+  res.json(courses.races[0]);
 });
 
 module.exports = router;
-// Détail d'une réunion
-router.get("/:id", (req, res) => {
-  const id = Number(req.params.id);
-
-  if (id === 1) {
-    return res.json({
-      id: 1,
-      name: "R1 – VINCENNES",
-      date: "2026-02-01",
-      races: [
-        { id: 101, label: "C1 – Prix de Moutiers" },
-        { id: 102, label: "C2 – Prix Indienne" },
-        { id: 103, label: "C3 – Prix Leopold Verroken" }
-      ]
-    });
-  }
-
-  if (id === 2) {
-    return res.json({
-      id: 2,
-      name: "R2 – ENGHIEN",
-      date: "2026-02-02",
-      races: [
-        { id: 201, label: "C1 – Prix de Paris" }
-      ]
-    });
-  }
-
-  res.status(404).json({ error: "Réunion introuvable" });
-});

@@ -1,8 +1,23 @@
 const mongoose = require("mongoose");
 
+const partantSchema = new mongoose.Schema({
+  cheval: String,
+  driver: String,
+  proprietaire: String,
+  musique: String,
+  cote: Number
+});
+
 const courseSchema = new mongoose.Schema({
-  name: { type: String, required: true },     // R1 – VINCENNES
-  date: { type: String, required: true },     // 2026-02-01
+  reunion: String,        // ex: "R1 – VINCENNES"
+  date: String,           // ex: "Dimanche 01 février 2026"
+  races: [
+    {
+      id: Number,         // ex: 101
+      label: String,      // ex: "C1 – Prix de Moutiers"
+      partants: [partantSchema]
+    }
+  ]
 });
 
 module.exports = mongoose.model("Course", courseSchema);
