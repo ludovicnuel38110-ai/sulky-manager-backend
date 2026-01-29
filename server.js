@@ -12,6 +12,7 @@ app.use(express.json());
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users")); // ← POUR LE SOLDE & DASHBOARD
 app.use("/api/admin", require("./routes/admin"));
+app.use("/api/courses", require("./routes/courses"));
 
 app.get("/", (req, res) => {
   res.send("Sulky Bet API running");
