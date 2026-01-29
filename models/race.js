@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
 
-const raceSchema = new mongoose.Schema({
-  label: { type: String, required: true },    // C1 – Prix de Moutiers
-  course: { type: mongoose.Schema.Types.ObjectId, ref: "Course" }
+const RaceSchema = new mongoose.Schema({
+  name: String,
+  date: String,
+  races: Array   // on stocke les C1, C2 etc ici
 });
 
-module.exports = mongoose.model("Race", raceSchema);
+module.exports = mongoose.model("Race", RaceSchema);
