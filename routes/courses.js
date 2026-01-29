@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Course = require("../models/Courses");
+const Course = require("../models/course");
 
 /* 🔹 Liste des réunions */
 router.get("/", async (req, res) => {
