@@ -1,36 +1,68 @@
 const express = require("express");
 const router = express.Router();
 
-// Détail d'une course
-router.get("/:id", (req, res) => {
-  const id = Number(req.params.id);
+const Race = require("../models/race");
 
-  if (id === 101) {
-    return res.json({
-      id: 101,
-      label: "C1 – Prix de Moutiers",
-      horses: [
-        {
-          number: 1,
-          name: "Fakir du Bourg",
-          driver: "J-M Bazire",
-          owner: "Ecurie Bazire",
-          music: "1a2a3a",
-          odds: 2.5
-        },
-        {
-          number: 2,
-          name: "Flash de Vrie",
-          driver: "Nivard",
-          owner: "Ecurie Nivard",
-          music: "3a4a2a",
-          odds: 4.1
-        }
-      ]
-    });
+
+/* ======================================
+   🔹 Toutes les réunions
+   GET /api/races
+====================================== */
+router.get("/", async (req, res) => {
+  try {
+    const reunions = await Race.find().sort({ date: -1 });
+    res.json(reunions);
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur" });
   }
+});
 
-  res.status(404).json({ error: "Course introuvable" });
+
+/* ======================================
+   🔹 Courses d'une réunion
+   GET /api/races/reunion/:id
+====================================== */
+router.get("/reunion/:id", async (req, res) => {
+  try {
+    const reunion = await Race.findById(req.params.id);
+
+    if (!reunion) {
+      return res.status(404).json({ message: "Réunion introuvable" });
+    }
+
+    res.json(reunion.races);
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+
+/* ======================================
+   🔹 Détail d'une course
+   GET /api/races/:raceId?reunion=xxx
+====================================== */
+router.get("/:raceId", async (req, res) => {
+  try {
+    const raceId = Number(req.params.raceId);
+    const reunionId = req.query.reunion;
+
+    const reunion = await Race.findById(reunionId);
+
+    if (!reunion) {
+      return res.status(404).json({ message: "Réunion introuvable" });
+    }
+
+    const race = reunion.races.find(r => r.id === raceId);
+
+    if (!race) {
+      return res.status(404).json({ message: "Course introuvable" });
+    }
+
+    res.json(race);
+
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
 });
 
 module.exports = router;
