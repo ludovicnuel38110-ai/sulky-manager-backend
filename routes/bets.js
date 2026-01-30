@@ -6,12 +6,28 @@ const User = require("../models/User");
 const auth = require("../middleware/auth");
 
 
-/* 🔹 Placer un pari */
+/* =========================
+   🔹 Historique utilisateur
+========================= */
+router.get("/me", auth, async (req, res) => {
+
+  const bets = await Bet.find({ userId: req.user.id })
+    .sort({ createdAt: -1 });
+
+  res.json(bets);
+
+});
+
+
+/* =========================
+   🔹 Placer un pari (NEW slip compatible)
+========================= */
 router.post("/", auth, async (req, res) => {
   try {
-    const { raceId, cheval, cote, montant } = req.body;
 
-    if (!raceId || !cheval || !montant || montant <= 0) {
+    const { raceId, chevaux, type, montant } = req.body;
+
+    if (!raceId || !chevaux || !chevaux.length || !montant || montant <= 0) {
       return res.status(400).json({ message: "Données invalides" });
     }
 
@@ -25,18 +41,26 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Solde insuffisant" });
     }
 
-    /* débit du solde */
+    /* 🔻 Débit */
     user.balance -= montant;
     await user.save();
 
-    /* création du pari */
+    /* 🔸 Cote moyenne simple (temporaire, améliorable plus tard) */
+    const coteMoyenne =
+      chevaux.reduce((acc, h) => acc + Number(h.cote), 0) / chevaux.length;
+
+    const gainPotentiel = montant * coteMoyenne;
+
+    /* 🔹 Création pari */
     const bet = await Bet.create({
       userId: user._id,
       raceId,
-      cheval,
-      cote,
+      chevaux,
+      type,
       montant,
-      gainPotentiel: montant * cote
+      gain: 0,
+      gainPotentiel,
+      status: "pending"
     });
 
     res.json({
@@ -50,5 +74,6 @@ router.post("/", auth, async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
+
 
 module.exports = router;
