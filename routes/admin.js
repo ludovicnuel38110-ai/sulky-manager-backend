@@ -230,3 +230,67 @@ router.post("/add-runner", auth, admin, async (req, res) => {
 
 
 module.exports = router;
+/* =========================================
+   🔴 Supprimer une réunion complète
+========================================= */
+router.delete("/delete-reunion/:id", auth, admin, async (req, res) => {
+  try {
+
+    await Race.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Réunion supprimée ✅" });
+
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+
+/* =========================================
+   🔴 Supprimer une course
+========================================= */
+router.delete("/delete-course", auth, admin, async (req, res) => {
+  try {
+
+    const { reunionId, raceId } = req.body;
+
+    await Race.updateOne(
+      { _id: reunionId },
+      {
+        $pull: {
+          races: { id: raceId }
+        }
+      }
+    );
+
+    res.json({ message: "Course supprimée ✅" });
+
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+
+/* =========================================
+   🔴 Supprimer tous les chevaux d’une course
+========================================= */
+router.delete("/clear-runners", auth, admin, async (req, res) => {
+  try {
+
+    const { reunionId, raceId } = req.body;
+
+    await Race.updateOne(
+      { _id: reunionId, "races.id": raceId },
+      {
+        $set: {
+          "races.$.partants": []
+        }
+      }
+    );
+
+    res.json({ message: "Partants supprimés ✅" });
+
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
