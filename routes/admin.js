@@ -42,44 +42,101 @@ router.post("/add-balance", auth, admin, async (req, res) => {
 /* ========================================
    🔹 Régler une course automatiquement
 ======================================== */
-router.post("/settle-race", auth, admin, async (req, res) => {
+router.post("/settle-results", auth, admin, async (req, res) => {
   try {
 
-    const { raceId, gagnant, cote } = req.body;
+    const {
+      raceId,
+      first,
+      second,
+      third,
+      coteWin,
+      cotePlace,
+      coteCouple,
+      coteTrio
+    } = req.body;
 
-    if (!raceId || !gagnant || !cote) {
-      return res.status(400).json({ message: "Données manquantes" });
+    if(!raceId || !first || !second || !third){
+      return res.status(400).json({ message:"Résultats incomplets" });
     }
 
     const bets = await Bet.find({
       raceId,
-      status: "pending"
+      status:"pending"
     });
 
     let winners = 0;
 
-    for (const bet of bets) {
+    for(const bet of bets){
 
       const user = await User.findById(bet.userId);
 
-      const isWinner =
-        bet.cheval === gagnant ||
-        bet.chevaux?.some(h => h.cheval === gagnant);
+      const names = bet.chevaux.map(h => h.cheval);
+      let gain = 0;
 
-      if (isWinner) {
+      /* ======================
+         SIMPLE GAGNANT
+      ====================== */
+      if(bet.type === "simple_win"){
+        if(names.includes(first)){
+          gain = bet.montant * coteWin;
+        }
+      }
 
-        const gain = bet.montant * cote;
+      /* ======================
+         SIMPLE PLACE
+      ====================== */
+      if(bet.type === "simple_place"){
+        if([first,second,third].includes(names[0])){
+          gain = bet.montant * cotePlace;
+        }
+      }
 
+      /* ======================
+         COUPLE GAGNANT
+      ====================== */
+      if(bet.type === "couple"){
+        const pair = [first,second];
+        if(pair.every(h => names.includes(h))){
+          gain = bet.montant * coteCouple;
+        }
+      }
+
+      /* ======================
+         COUPLE PLACE
+      ====================== */
+      if(bet.type === "couple_place"){
+        const combos = [
+          [first,second],
+          [first,third]
+        ];
+
+        if(combos.some(c => c.every(h => names.includes(h)))){
+          gain = bet.montant * coteCouple;
+        }
+      }
+
+      /* ======================
+         TRIO
+      ====================== */
+      if(bet.type === "trio"){
+        const trio = [first,second,third];
+        if(trio.every(h => names.includes(h))){
+          gain = bet.montant * coteTrio;
+        }
+      }
+
+      /* ======================
+         PAIEMENT
+      ====================== */
+      if(gain > 0){
         user.balance += gain;
         await user.save();
 
         bet.status = "win";
         bet.gain = gain;
-
         winners++;
-
       } else {
-
         bet.status = "lose";
         bet.gain = 0;
       }
@@ -88,15 +145,13 @@ router.post("/settle-race", auth, admin, async (req, res) => {
     }
 
     res.json({
-      message: "Course réglée ✅",
+      message:"Résultats réglés automatiquement ✅",
       winners,
-      totalBets: bets.length
+      total: bets.length
     });
 
-  } catch (err) {
+  } catch(err){
     console.error(err);
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(500).json({ message:"Erreur serveur" });
   }
 });
-
-module.exports = router;
