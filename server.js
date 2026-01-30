@@ -8,12 +8,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// ===== ROUTES API =====
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/bets", require("./routes/bets"));
 app.use("/api/results", require("./routes/results"));
+app.use("/api/races", require("./routes/races")); // ⭐ IMPORTANT
 
 app.get("/", (req, res) => {
   res.send("Sulky Bet API running");
