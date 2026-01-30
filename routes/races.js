@@ -5,16 +5,34 @@ const Race = require("../models/race");
 
 
 /* =========================================
-   GET toutes les réunions
-   /api/races
+   ✅ LISTE des réunions
+   GET /api/races
 ========================================= */
-
 router.get("/", async (req, res) => {
   try {
-
     const reunions = await Race.find();
-
     res.json(reunions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+
+/* =========================================
+   ✅ COURSES d’une réunion
+   GET /api/races/reunion/:reunionId
+========================================= */
+router.get("/reunion/:reunionId", async (req, res) => {
+  try {
+
+    const reunion = await Race.findById(req.params.reunionId);
+
+    if (!reunion) {
+      return res.status(404).json({ message: "Réunion introuvable" });
+    }
+
+    res.json(reunion.races || []);
 
   } catch (err) {
     console.error(err);
@@ -24,10 +42,9 @@ router.get("/", async (req, res) => {
 
 
 /* =========================================
-   GET une course précise + partants
-   /api/races/:id
+   ✅ DÉTAIL d’une course + partants
+   GET /api/races/:id
 ========================================= */
-
 router.get("/:id", async (req, res) => {
   try {
 
