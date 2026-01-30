@@ -7,6 +7,8 @@ const Bet = require("../models/Bet");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 
+const Result = require("../models/Result");
+
 
 /* ========================================
    🔹 Créditer un joueur (admin)
@@ -164,6 +166,21 @@ router.post("/settle-results", auth, admin, async (req, res) => {
 
       await bet.save();
     }
+/* 🔹 Sauvegarder le résultat */
+await Result.findOneAndUpdate(
+  { raceId },
+  {
+    raceId,
+    first,
+    second,
+    third,
+    coteWin,
+    cotePlace,
+    coteCouple,
+    coteTrio
+  },
+  { upsert:true }
+);
 
     res.json({
       message: "Résultats réglés automatiquement ✅",
