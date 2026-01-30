@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const User = require("../models/User");
-const Bet = require("../models/Bet"); // ⭐ IMPORTANT
+const Bet = require("../models/Bet"); // ✅ UNE SEULE FOIS
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 
@@ -40,14 +40,14 @@ router.post("/add-balance", auth, admin, async (req, res) => {
 
 
 /* ========================================
-   🔹 Régler une course (AUTO GAIN)
+   🔹 Régler une course automatiquement
 ======================================== */
 router.post("/settle-race", auth, admin, async (req, res) => {
   try {
 
-    const { raceId, gagnant } = req.body;
+    const { raceId, gagnant, cote } = req.body;
 
-    if (!raceId || !gagnant) {
+    if (!raceId || !gagnant || !cote) {
       return res.status(400).json({ message: "Données manquantes" });
     }
 
@@ -63,12 +63,12 @@ router.post("/settle-race", auth, admin, async (req, res) => {
       const user = await User.findById(bet.userId);
 
       const isWinner =
-        bet.chevaux?.some(h => h.cheval === gagnant) ||
-        bet.cheval === gagnant;
+        bet.cheval === gagnant ||
+        bet.chevaux?.some(h => h.cheval === gagnant);
 
       if (isWinner) {
 
-        const gain = bet.gainPotentiel;
+        const gain = bet.montant * cote;
 
         user.balance += gain;
         await user.save();
@@ -88,7 +88,7 @@ router.post("/settle-race", auth, admin, async (req, res) => {
     }
 
     res.json({
-      message: "Course réglée",
+      message: "Course réglée ✅",
       winners,
       totalBets: bets.length
     });
@@ -98,6 +98,5 @@ router.post("/settle-race", auth, admin, async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
-
 
 module.exports = router;
