@@ -10,10 +10,9 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
-app.use("/api/users", require("./routes/users")); // ← POUR LE SOLDE & DASHBOARD
+app.use("/api/users", require("./routes/users"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/courses", require("./routes/courses"));
-app.use("/api/races", require("./routes/races"));
 app.use("/api/bets", require("./routes/bets"));
 
 app.get("/", (req, res) => {
