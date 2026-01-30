@@ -1,13 +1,15 @@
 const express = require("express");
 const router = express.Router();
 
+/* ================= IMPORTS ================= */
+
 const User = require("../models/User");
 const Bet = require("../models/Bet");
+const Race = require("../models/race");
+const Result = require("../models/Result");
 
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
-
-const Result = require("../models/Result");
 
 
 /* ========================================
@@ -43,10 +45,8 @@ router.post("/add-balance", auth, admin, async (req, res) => {
 });
 
 
-
 /* ========================================
    🔹 Règlement automatique complet PMU
-   1er / 2e / 3e + cotes finales
 ======================================== */
 router.post("/settle-results", auth, admin, async (req, res) => {
 
@@ -67,7 +67,6 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       return res.status(400).json({ message: "Résultats incomplets" });
     }
 
-    /* 🔹 récupérer tous les paris en attente */
     const bets = await Bet.find({
       raceId,
       status: "pending"
@@ -78,109 +77,72 @@ router.post("/settle-results", auth, admin, async (req, res) => {
     for (const bet of bets) {
 
       const user = await User.findById(bet.userId);
-      if (!user) continue; // sécurité
+      if (!user) continue;
 
       const names = (bet.chevaux || []).map(h => h.cheval);
-
       let gain = 0;
 
-      /* ======================
-         SIMPLE GAGNANT
-      ====================== */
-      if (bet.type === "simple_win") {
-
-        if (names.includes(first)) {
-          gain = bet.montant * coteWin;
-        }
-
+      /* SIMPLE WIN */
+      if (bet.type === "simple_win" && names.includes(first)) {
+        gain = bet.montant * coteWin;
       }
 
-      /* ======================
-         SIMPLE PLACE
-      ====================== */
-      else if (bet.type === "simple_place") {
-
-        if ([first, second, third].includes(names[0])) {
-          gain = bet.montant * cotePlace;
-        }
-
+      /* SIMPLE PLACE */
+      else if (bet.type === "simple_place" && [first, second, third].includes(names[0])) {
+        gain = bet.montant * cotePlace;
       }
 
-      /* ======================
-         COUPLE GAGNANT
-      ====================== */
-      else if (bet.type === "couple") {
-
-        if ([first, second].every(h => names.includes(h))) {
-          gain = bet.montant * coteCouple;
-        }
-
+      /* COUPLE GAGNANT */
+      else if (bet.type === "couple" && [first, second].every(h => names.includes(h))) {
+        gain = bet.montant * coteCouple;
       }
 
-      /* ======================
-         COUPLE PLACE
-      ====================== */
+      /* COUPLE PLACE */
       else if (bet.type === "couple_place") {
-
         const combos = [
           [first, second],
           [first, third]
         ];
-
         if (combos.some(c => c.every(h => names.includes(h)))) {
           gain = bet.montant * coteCouple;
         }
-
       }
 
-      /* ======================
-         TRIO
-      ====================== */
-      else if (bet.type === "trio") {
-
-        if ([first, second, third].every(h => names.includes(h))) {
-          gain = bet.montant * coteTrio;
-        }
-
+      /* TRIO */
+      else if (bet.type === "trio" && [first, second, third].every(h => names.includes(h))) {
+        gain = bet.montant * coteTrio;
       }
 
-      /* ======================
-         PAIEMENT
-      ====================== */
+      /* PAIEMENT */
       if (gain > 0) {
-
         user.balance += gain;
         await user.save();
-
         bet.status = "win";
         bet.gain = gain;
-
         winners++;
-
       } else {
-
         bet.status = "lose";
         bet.gain = 0;
-
       }
 
       await bet.save();
     }
-/* 🔹 Sauvegarder le résultat */
-await Result.findOneAndUpdate(
-  { raceId },
-  {
-    raceId,
-    first,
-    second,
-    third,
-    coteWin,
-    cotePlace,
-    coteCouple,
-    coteTrio
-  },
-  { upsert:true }
-);
+
+    /* 🔹 Sauvegarder résultat */
+    await Result.findOneAndUpdate(
+      { raceId },
+      {
+        raceId,
+        first,
+        second,
+        third,
+        coteWin,
+        cotePlace,
+        coteCouple,
+        coteTrio
+      },
+      { upsert: true }
+    );
 
     res.json({
       message: "Résultats réglés automatiquement ✅",
@@ -189,11 +151,81 @@ await Result.findOneAndUpdate(
     });
 
   } catch (err) {
-
     console.error(err);
     res.status(500).json({ message: "Erreur serveur" });
-
   }
+});
+
+
+/* =========================================
+   🔹 Créer une réunion
+========================================= */
+router.post("/create-reunion", auth, admin, async (req, res) => {
+  const { reunion, date } = req.body;
+
+  const doc = await Race.create({
+    reunion,
+    date,
+    races: []
+  });
+
+  res.json({ message: "Réunion créée", id: doc._id });
+});
+
+
+/* =========================================
+   🔹 Ajouter course
+========================================= */
+router.post("/add-course", auth, admin, async (req, res) => {
+
+  const { reunionId, id, label, date } = req.body;
+
+  await Race.findByIdAndUpdate(reunionId, {
+    $push: {
+      races: {
+        id,
+        label,
+        date,
+        partants: []
+      }
+    }
+  });
+
+  res.json({ message: "Course ajoutée" });
+});
+
+
+/* =========================================
+   🔹 Ajouter cheval
+========================================= */
+router.post("/add-runner", auth, admin, async (req, res) => {
+
+  const {
+    reunionId,
+    raceId,
+    cheval,
+    driver,
+    proprietaire,
+    musique,
+    cote
+  } = req.body;
+
+  await Race.updateOne(
+    { _id: reunionId, "races.id": raceId },
+    {
+      $push: {
+        "races.$.partants": {
+          cheval,
+          driver,
+          proprietaire,
+          musique,
+          cote
+        }
+      }
+    }
+  );
+
+  res.json({ message: "Partant ajouté" });
 });
 
 
