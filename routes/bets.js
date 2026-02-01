@@ -3,7 +3,7 @@ const router = express.Router();
 
 const Bet = require("../models/Bet");
 const User = require("../models/User");
-const Race = require("../models/Race"); // ⭐ important
+const Race = require("../models/race"); // ⭐ important
 const auth = require("../middleware/auth");
 
 
