@@ -41,7 +41,6 @@ router.post("/add-balance", auth, admin, async (req, res) => {
   }
 });
 
-
 /* ========================================
    🔹 Historique global des paris (ADMIN)
 ======================================== */
@@ -50,12 +49,14 @@ router.get("/bets", auth, admin, async (req, res) => {
   try {
 
     const bets = await Bet.find()
-      .populate("userId", "pseudo")
+      .populate("user", "pseudo")   // ✅ FIX
+      .populate("race", "label")   // ✅ BONUS
       .sort({ createdAt: -1 });
 
     const formatted = bets.map(b => ({
       ...b.toObject(),
-      userPseudo: b.userId?.pseudo || "?"
+      userPseudo: b.user?.pseudo || "?",
+      raceLabel: b.race?.label || b.race
     }));
 
     res.json(formatted);
@@ -64,6 +65,7 @@ router.get("/bets", auth, admin, async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Erreur serveur" });
   }
+
 });
 
 
