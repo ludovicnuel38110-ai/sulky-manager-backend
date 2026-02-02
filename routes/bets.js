@@ -3,7 +3,7 @@ const router = express.Router();
 
 const Bet = require("../models/Bet");
 const User = require("../models/User");
-const Race = require("../models/race"); // ⚠️ ton fichier est en minuscule
+const Race = require("../models/race"); // ton fichier est minuscule
 const auth = require("../middleware/auth");
 
 
@@ -38,12 +38,14 @@ router.get("/me", auth, async (req, res) => {
 
   try{
 
-    const bets = await Bet.find({ userId: req.user.id })
+    const bets = await Bet.find({ user: req.user.id }) // ✅ user PAS userId
+      .populate("race","label")
       .sort({ createdAt: -1 });
 
     res.json(bets);
 
   }catch(err){
+    console.error(err);
     res.status(500).json({ message:"Erreur serveur" });
   }
 
@@ -51,7 +53,7 @@ router.get("/me", auth, async (req, res) => {
 
 
 /* =================================================
-   🔹 POST PARI (SECURISE + FERMETURE 30MIN)
+   🔹 POST PARI
 ================================================= */
 
 router.post("/", auth, async (req, res) => {
@@ -60,13 +62,9 @@ router.post("/", auth, async (req, res) => {
 
     const { raceId, chevaux, type, montant } = req.body;
 
-    /* ========= VALIDATION ========= */
-
     if (!raceId || !chevaux?.length || !montant || montant <= 0)
       return res.status(400).json({ message: "Données invalides" });
 
-
-    /* ========= NOMBRE CHEVAUX ========= */
 
     const needed = requiredCount(type);
 
@@ -76,21 +74,23 @@ router.post("/", auth, async (req, res) => {
       });
 
 
-    /* ========= FERMETURE 30MIN ========= */
+    /* ========= FIND COURSE ========= */
 
     const meeting = await Race.findOne({ "races.id": raceId });
 
     if (!meeting)
       return res.status(404).json({ message: "Course introuvable" });
 
+
     const course = meeting.races.find(r => r.id === raceId);
+
+
+    /* ========= FERMETURE 30MIN ========= */
 
     const raceTime = new Date(course.date).getTime();
     const now = Date.now();
 
-    const THIRTY_MIN = 30 * 60 * 1000;
-
-    if (raceTime - now <= THIRTY_MIN)
+    if (raceTime - now <= 30 * 60 * 1000)
       return res.status(400).json({
         message: "Paris fermés pour cette course"
       });
@@ -100,40 +100,26 @@ router.post("/", auth, async (req, res) => {
 
     const user = await User.findById(req.user.id);
 
-    if (!user)
-      return res.status(404).json({ message: "Utilisateur introuvable" });
-
-    if (user.balance < montant)
+    if (!user || user.balance < montant)
       return res.status(400).json({ message: "Solde insuffisant" });
 
 
-    /* ========= DEBIT ========= */
-
     user.balance -= montant;
     await user.save();
-
-
-    /* ========= GAIN POTENTIEL ========= */
-
-    const coteMoyenne =
-      chevaux.reduce((acc, h) => acc + Number(h.cote || 1), 0) / chevaux.length;
-
-    const gainPotentiel = montant * coteMoyenne;
 
 
     /* ========= CREATE BET ========= */
 
     const bet = await Bet.create({
 
-      userId: user._id,   // ✅ garde ton schema
-      raceId,             // ✅ garde ton schema
+      user: user._id,          // ✅ CORRECT
+      race: meeting._id,       // ✅ CORRECT
 
       chevaux,
       type,
       montant,
 
       gain: 0,
-      gainPotentiel,
       status: "pending"
     });
 
