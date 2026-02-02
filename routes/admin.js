@@ -294,3 +294,21 @@ router.delete("/clear-runners", auth, admin, async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
+const Bet = require("../models/Bet");
+
+router.get("/bets", async (req,res)=>{
+
+  try{
+
+    const bets = await Bet.find()
+      .populate("user","pseudo")
+      .populate("race","label")
+      .sort({createdAt:-1});
+
+    res.json(bets);
+
+  }catch(err){
+    res.status(500).json({message:"Erreur serveur"});
+  }
+
+});

@@ -2,16 +2,23 @@ const mongoose = require("mongoose");
 
 const betSchema = new mongoose.Schema({
 
-  userId: {
+  /* ================= USER ================= */
+
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
   },
 
-  raceId: {
-    type: Number,
+  /* ================= COURSE ================= */
+
+  race: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Race",
     required: true
   },
+
+  /* ================= CHEVAUX ================= */
 
   chevaux: [
     {
@@ -19,10 +26,14 @@ const betSchema = new mongoose.Schema({
     }
   ],
 
+  /* ================= TYPE PARI ================= */
+
   type: {
     type: String,
     default: "simple_win"
   },
+
+  /* ================= MONTANT ================= */
 
   montant: {
     type: Number,
@@ -34,17 +45,23 @@ const betSchema = new mongoose.Schema({
     default: 0
   },
 
+  /* ================= STATUT ================= */
+
   status: {
     type: String,
     enum: ["pending", "win", "lose"],
     default: "pending"
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now
   }
 
+},
+{
+  /* 🔥 ULTRA IMPORTANT POUR ADMIN PANEL */
+  timestamps: true
+  /*
+    créé automatiquement :
+    createdAt
+    updatedAt
+  */
 });
 
 module.exports = mongoose.model("Bet", betSchema);

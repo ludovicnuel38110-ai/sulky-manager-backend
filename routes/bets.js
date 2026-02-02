@@ -3,7 +3,7 @@ const router = express.Router();
 
 const Bet = require("../models/Bet");
 const User = require("../models/User");
-const Race = require("../models/race"); // ⭐ important
+const Race = require("../models/race"); // ✅ MAJUSCULE IMPORTANT
 const auth = require("../middleware/auth");
 
 
@@ -15,20 +15,25 @@ function requiredCount(type){
   switch(type){
     case "simple_win":
     case "simple_place": return 1;
-    case "couple": return 2;
+
+    case "couple_win":
+    case "couple_place": return 2;
+
     case "trio": return 3;
+
     default: return 1;
   }
 }
 
 
 /* =================================================
-   🔹 Historique utilisateur
+   🔹 Historique utilisateur (AVEC POPULATE)
 ================================================= */
 
 router.get("/me", auth, async (req, res) => {
 
-  const bets = await Bet.find({ userId: req.user.id })
+  const bets = await Bet.find({ user: req.user.id })
+    .populate("race", "label")
     .sort({ createdAt: -1 });
 
   res.json(bets);
@@ -76,14 +81,11 @@ router.post("/", auth, async (req, res) => {
 
     const THIRTY_MIN = 30 * 60 * 1000;
 
-    if (raceTime - now <= THIRTY_MIN) {
-      return res.status(400).json({
-        message: "Paris fermés pour cette course"
-      });
-    }
+    if (raceTime - now <= THIRTY_MIN)
+      return res.status(400).json({ message: "Paris fermés pour cette course" });
 
-    /* ======================================= */
 
+    /* ========= USER ========= */
 
     const user = await User.findById(req.user.id);
 
@@ -108,16 +110,20 @@ router.post("/", auth, async (req, res) => {
     const gainPotentiel = montant * coteMoyenne;
 
 
-    /* ========= CREATE BET ========= */
+    /* ========= CREATE BET (NOUVEAU FORMAT) ========= */
 
     const bet = await Bet.create({
-      userId: user._id,
-      raceId,
+
+      user: user._id,      // ✅ NEW
+      race: meeting._id,   // ✅ NEW (ObjectId)
+
       chevaux,
       type,
       montant,
+
       gain: 0,
       gainPotentiel,
+
       status: "pending"
     });
 
