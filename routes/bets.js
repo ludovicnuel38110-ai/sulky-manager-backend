@@ -3,12 +3,19 @@ const router = express.Router();
 
 const Bet = require("../models/Bet");
 const User = require("../models/User");
-const Race = require("../models/race"); // minuscule OK
+const Race = require("../models/race");
 const auth = require("../middleware/auth");
 
 
 /* =================================================
-   🔹 Helper validation chevaux
+   🔹 CONSTANTES SECURITE
+================================================= */
+
+const MAX_PER_COURSE = 20000;
+
+
+/* =================================================
+   🔹 Helper nombre chevaux
 ================================================= */
 
 function requiredCount(type){
@@ -31,7 +38,7 @@ function requiredCount(type){
 
 
 /* =================================================
-   🔹 LIMITES DE MISE (🔥 SECURITE SERVEUR)
+   🔹 LIMITES MAX PAR TYPE
 ================================================= */
 
 function getMaxBet(type){
@@ -70,7 +77,7 @@ router.get("/me", auth, async (req, res) => {
 
 
 /* =================================================
-   🔹 POST PARI (SECURISE COMPLET)
+   🔹 POST PARI (ULTRA SECURISE)
 ================================================= */
 
 router.post("/", auth, async (req, res) => {
@@ -79,7 +86,7 @@ router.post("/", auth, async (req, res) => {
 
     const { raceId, chevaux, type, montant } = req.body;
 
-    /* ========= VALIDATION BASIQUE ========= */
+    /* ========= VALIDATION ========= */
 
     if (!raceId || !chevaux?.length || !montant || montant <= 0)
       return res.status(400).json({ message: "Données invalides" });
@@ -95,13 +102,13 @@ router.post("/", auth, async (req, res) => {
       });
 
 
-    /* ========= LIMITES MAX (🔥 NOUVEAU) ========= */
+    /* ========= LIMITE PAR PARI ========= */
 
-    const max = getMaxBet(type);
+    const maxType = getMaxBet(type);
 
-    if (montant > max)
+    if (montant > maxType)
       return res.status(400).json({
-        message: `Mise max autorisée : ${max}`
+        message: `Mise max autorisée : ${maxType}`
       });
 
 
@@ -135,6 +142,33 @@ router.post("/", auth, async (req, res) => {
 
     if (user.balance < montant)
       return res.status(400).json({ message: "Solde insuffisant" });
+
+
+    /* =================================================
+       🔥 NOUVEAU : LIMITE PAR COURSE (IMPORTANT)
+    ================================================= */
+
+    const totalAlreadyBet = await Bet.aggregate([
+      {
+        $match: {
+          user: user._id,
+          race: meeting._id
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$montant" }
+        }
+      }
+    ]);
+
+    const total = totalAlreadyBet[0]?.total || 0;
+
+    if (total + montant > MAX_PER_COURSE)
+      return res.status(400).json({
+        message: `Limite par course atteinte (${MAX_PER_COURSE})`
+      });
 
 
     /* ========= DEBIT ========= */
