@@ -16,6 +16,7 @@ const admin = require("../middleware/admin");
    🔹 Créditer un joueur
 ======================================== */
 router.post("/add-balance", auth, admin, async (req, res) => {
+
   try {
 
     const { pseudo, amount } = req.body;
@@ -36,10 +37,12 @@ router.post("/add-balance", auth, admin, async (req, res) => {
       balance: user.balance
     });
 
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: "Erreur serveur" });
   }
+
 });
+
 
 /* ========================================
    🔹 Historique global des paris (ADMIN)
@@ -49,14 +52,14 @@ router.get("/bets", auth, admin, async (req, res) => {
   try {
 
     const bets = await Bet.find()
-      .populate("user", "pseudo")   // ✅ FIX
-      .populate("race", "label")   // ✅ BONUS
+      .populate("user", "pseudo")
+      .populate("race", "label")
       .sort({ createdAt: -1 });
 
     const formatted = bets.map(b => ({
       ...b.toObject(),
       userPseudo: b.user?.pseudo || "?",
-      raceLabel: b.race?.label || b.race
+      raceLabel: b.race?.label || "-"
     }));
 
     res.json(formatted);
@@ -70,7 +73,9 @@ router.get("/bets", auth, admin, async (req, res) => {
 
 
 /* ========================================
-   🔹 Règlement automatique
+   🔥 RÈGLEMENT AUTOMATIQUE (VERSION PRO)
+   ✔ simple placé différencié
+   ✔ couplé placé différencié
 ======================================== */
 router.post("/settle-results", auth, admin, async (req, res) => {
 
@@ -81,52 +86,108 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       first,
       second,
       third,
+
       coteWin = 1,
-      cotePlace = 1,
-      coteCouple = 1,
+
+      // 🆕 SIMPLE PLACE
+      cotePlace1 = 1,
+      cotePlace2 = 1,
+      cotePlace3 = 1,
+
+      // 🆕 COUPLÉ GAGNANT
+      coteCoupleWin = 1,
+
+      // 🆕 COUPLÉ PLACE DIFFÉRENTS
+      coteCouple12 = 1,
+      coteCouple13 = 1,
+      coteCouple23 = 1,
+
       coteTrio = 1
+
     } = req.body;
+
 
     if (!raceId || !first || !second || !third)
       return res.status(400).json({ message: "Résultats incomplets" });
+
 
     const bets = await Bet.find({ raceId, status: "pending" });
 
     let winners = 0;
 
+
     for (const bet of bets) {
 
-      const user = await User.findById(bet.userId);
+      const user = await User.findById(bet.user);
       if (!user) continue;
 
-      const names = (bet.chevaux || []).map(h => h.cheval);
+      const names = bet.chevaux.map(h => h.cheval);
       let gain = 0;
 
-      if (bet.type === "simple_win" && names.includes(first))
+
+      /* ================= SIMPLE WIN ================= */
+      if (bet.type === "simple_win" && names.includes(first)) {
         gain = bet.montant * coteWin;
-
-      else if (bet.type === "simple_place" && [first, second, third].includes(names[0]))
-        gain = bet.montant * cotePlace;
-
-      else if (bet.type === "couple_win" && [first, second].every(h => names.includes(h)))
-        gain = bet.montant * coteCouple;
-
-      else if (bet.type === "couple_place") {
-        const combos = [[first, second], [first, third]];
-        if (combos.some(c => c.every(h => names.includes(h))))
-          gain = bet.montant * coteCouple;
       }
 
-      else if (bet.type === "trio" && [first, second, third].every(h => names.includes(h)))
+
+      /* ================= SIMPLE PLACE ================= */
+      else if (bet.type === "simple_place") {
+
+        if (names[0] === first)
+          gain = bet.montant * cotePlace1;
+
+        else if (names[0] === second)
+          gain = bet.montant * cotePlace2;
+
+        else if (names[0] === third)
+          gain = bet.montant * cotePlace3;
+      }
+
+
+      /* ================= COUPLÉ GAGNANT ================= */
+      else if (bet.type === "couple_win" &&
+        [first, second].every(h => names.includes(h))) {
+
+        gain = bet.montant * coteCoupleWin;
+      }
+
+
+      /* ================= COUPLÉ PLACÉ (3 combos) ================= */
+      else if (bet.type === "couple_place") {
+
+        const pair = names.sort().join("-");
+
+        const map = {
+          [ [first, second].sort().join("-") ]: coteCouple12,
+          [ [first, third].sort().join("-") ]: coteCouple13,
+          [ [second, third].sort().join("-") ]: coteCouple23
+        };
+
+        if (map[pair])
+          gain = bet.montant * map[pair];
+      }
+
+
+      /* ================= TRIO ================= */
+      else if (bet.type === "trio" &&
+        [first, second, third].every(h => names.includes(h))) {
+
         gain = bet.montant * coteTrio;
+      }
+
+
+      /* ================= PAIEMENT ================= */
 
       if (gain > 0) {
         user.balance += gain;
         await user.save();
+
         bet.status = "win";
         bet.gain = gain;
         winners++;
-      } else {
+      }
+      else {
         bet.status = "lose";
         bet.gain = 0;
       }
@@ -134,11 +195,29 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       await bet.save();
     }
 
+
+    /* ================= SAVE RESULT ================= */
+
     await Result.findOneAndUpdate(
       { raceId },
-      { raceId, first, second, third, coteWin, cotePlace, coteCouple, coteTrio },
+      {
+        raceId,
+        first,
+        second,
+        third,
+        coteWin,
+        cotePlace1,
+        cotePlace2,
+        cotePlace3,
+        coteCoupleWin,
+        coteCouple12,
+        coteCouple13,
+        coteCouple23,
+        coteTrio
+      },
       { upsert: true }
     );
+
 
     res.json({
       message: "Résultats réglés automatiquement ✅",
@@ -147,8 +226,10 @@ router.post("/settle-results", auth, admin, async (req, res) => {
     });
 
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur" });
   }
+
 });
 
 
