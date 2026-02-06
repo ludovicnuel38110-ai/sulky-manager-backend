@@ -8,9 +8,24 @@ const resultSchema = new mongoose.Schema({
   second: String,
   third: String,
 
+  /* ================= COTES ================= */
+
   coteWin: Number,
-  cotePlace: Number,
-  coteCouple: Number,
+
+  /* 🔥 SIMPLE PLACE (3 cotes différentes) */
+  cotePlace1: Number,
+  cotePlace2: Number,
+  cotePlace3: Number,
+
+  /* 🔥 COUPLÉ */
+  coteCoupleWin: Number,
+
+  /* 🔥 COUPLÉ PLACÉ (3 combinaisons) */
+  coteCouple12: Number,
+  coteCouple13: Number,
+  coteCouple23: Number,
+
+  /* 🔥 TRIO */
   coteTrio: Number,
 
   createdAt: {
