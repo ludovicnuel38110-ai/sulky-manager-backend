@@ -73,9 +73,7 @@ router.get("/bets", auth, admin, async (req, res) => {
 
 
 /* ========================================
-   🔥 RÈGLEMENT AUTOMATIQUE (VERSION PRO)
-   ✔ simple placé différencié
-   ✔ couplé placé différencié
+   🔥 RÈGLEMENT AUTOMATIQUE (FIX MINIMAL)
 ======================================== */
 router.post("/settle-results", auth, admin, async (req, res) => {
 
@@ -89,15 +87,12 @@ router.post("/settle-results", auth, admin, async (req, res) => {
 
       coteWin = 1,
 
-      // 🆕 SIMPLE PLACE
       cotePlace1 = 1,
       cotePlace2 = 1,
       cotePlace3 = 1,
 
-      // 🆕 COUPLÉ GAGNANT
       coteCoupleWin = 1,
 
-      // 🆕 COUPLÉ PLACE DIFFÉRENTS
       coteCouple12 = 1,
       coteCouple13 = 1,
       coteCouple23 = 1,
@@ -111,7 +106,20 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       return res.status(400).json({ message: "Résultats incomplets" });
 
 
-    const bets = await Bet.find({ raceId, status: "pending" });
+    /* ================= 🔥 FIX UNIQUEMENT ICI ================= */
+
+    const meeting = await Race.findOne({ "races.id": raceId });
+
+    if (!meeting)
+      return res.status(404).json({ message: "Course introuvable" });
+
+    const bets = await Bet.find({
+      race: meeting._id,
+      status: "pending"
+    });
+
+    /* ======================================================== */
+
 
     let winners = 0;
 
@@ -125,43 +133,31 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       let gain = 0;
 
 
-      /* ================= SIMPLE WIN ================= */
-      if (bet.type === "simple_win" && names.includes(first)) {
+      if (bet.type === "simple_win" && names.includes(first))
         gain = bet.montant * coteWin;
-      }
 
 
-      /* ================= SIMPLE PLACE ================= */
       else if (bet.type === "simple_place") {
 
-        if (names[0] === first)
-          gain = bet.montant * cotePlace1;
-
-        else if (names[0] === second)
-          gain = bet.montant * cotePlace2;
-
-        else if (names[0] === third)
-          gain = bet.montant * cotePlace3;
+        if (names[0] === first) gain = bet.montant * cotePlace1;
+        else if (names[0] === second) gain = bet.montant * cotePlace2;
+        else if (names[0] === third) gain = bet.montant * cotePlace3;
       }
 
 
-      /* ================= COUPLÉ GAGNANT ================= */
       else if (bet.type === "couple_win" &&
-        [first, second].every(h => names.includes(h))) {
-
+        [first, second].every(h => names.includes(h)))
         gain = bet.montant * coteCoupleWin;
-      }
 
 
-      /* ================= COUPLÉ PLACÉ (3 combos) ================= */
       else if (bet.type === "couple_place") {
 
         const pair = names.sort().join("-");
 
         const map = {
-          [ [first, second].sort().join("-") ]: coteCouple12,
-          [ [first, third].sort().join("-") ]: coteCouple13,
-          [ [second, third].sort().join("-") ]: coteCouple23
+          [[first, second].sort().join("-")]: coteCouple12,
+          [[first, third].sort().join("-")]: coteCouple13,
+          [[second, third].sort().join("-")]: coteCouple23
         };
 
         if (map[pair])
@@ -169,25 +165,18 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       }
 
 
-      /* ================= TRIO ================= */
       else if (bet.type === "trio" &&
-        [first, second, third].every(h => names.includes(h))) {
-
+        [first, second, third].every(h => names.includes(h)))
         gain = bet.montant * coteTrio;
-      }
 
-
-      /* ================= PAIEMENT ================= */
 
       if (gain > 0) {
         user.balance += gain;
         await user.save();
-
         bet.status = "win";
         bet.gain = gain;
         winners++;
-      }
-      else {
+      } else {
         bet.status = "lose";
         bet.gain = 0;
       }
@@ -195,8 +184,6 @@ router.post("/settle-results", auth, admin, async (req, res) => {
       await bet.save();
     }
 
-
-    /* ================= SAVE RESULT ================= */
 
     await Result.findOneAndUpdate(
       { raceId },
